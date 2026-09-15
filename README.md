@@ -2,11 +2,16 @@
 
 [![CI](https://github.com/MikanseiLaboratory/sp2-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/MikanseiLaboratory/sp2-rs/actions/workflows/ci.yml)
 
-Pure Rust [Spout2](https://spout.zeal.co/) (Windows) / [Syphon](https://syphon.github.io/) (macOS) texture sharing.
+Pure Rust [Spout2](https://spout.zeal.co/) (Windows) / [Syphon](https://syphon.github.io/) texture sharing.
 
-Not a C++ / Objective-C wrapper — the on-wire / shared-memory protocols are reimplemented in Rust.
+> **Disclaimer:** Independent community project. Not affiliated with Spout or Syphon.
 
-This project is not affiliated with Spout or Syphon.
+## Related projects
+
+| Project | Description |
+|---------|-------------|
+| [Spout2](https://github.com/leadedge/Spout2) | Official Spout2 SDK (D3D11 shared textures) |
+| [Syphon](https://github.com/Syphon/Syphon-Framework) | Official Syphon framework (IOSurface) |
 
 ## Crates
 
@@ -53,28 +58,40 @@ if receiver.receive()?.is_some() {
 
 ## Examples
 
-Windows / macOS, from the repo root:
+Windows / macOS, from the repo root. Pair a sender and a receiver in two terminals.
+
+| Example | Description |
+|---------|-------------|
+| `list_senders` | List senders / servers |
+| `sender_cpu` | Animated CPU gradient |
+| `receiver_cpu` | Print size / fps / average color |
+| `wgpu_sender` | Rotating triangle (winit window) |
+| `wgpu_receiver` | Fullscreen blit (`--shared` = alias the shared texture) |
+| `relay` | Receive → invert → republish (headless) |
 
 ```bash
-cargo run -p sp2 --example list_senders
+# CPU
 cargo run -p sp2 --example sender_cpu -- "sp2 CPU Sender" 640 360
 cargo run -p sp2 --example receiver_cpu -- "sp2 CPU Sender"
+cargo run -p sp2 --example list_senders
 
+# wgpu
 cargo run -p sp2-wgpu --example wgpu_sender -- "sp2 wgpu Sender" 1280 720
 cargo run -p sp2-wgpu --example wgpu_receiver -- "sp2 wgpu Sender"
 cargo run -p sp2-wgpu --example wgpu_receiver -- "sp2 wgpu Sender" --shared
 cargo run -p sp2-wgpu --example relay -- "sp2 wgpu Sender" "sp2 Relay"
+```
 
-WGPU_BACKEND=dx12 cargo run -p sp2-wgpu --example wgpu_sender
+Pick the wgpu backend with `WGPU_BACKEND` (`dx12` / `vulkan` / `metal`):
+
+```bash
 WGPU_BACKEND=vulkan cargo run -p sp2-wgpu --example wgpu_sender
 ```
 
-Works with existing Spout / Syphon apps (Resolume, TouchDesigner, VDMX, OBS, …).
+These also talk to existing Spout / Syphon apps (Resolume, TouchDesigner, VDMX, OBS, …).
 
-See [docs/](docs/) for protocol notes and the implementation plan.
+See [docs/](docs/) for protocol notes.
 
 ## License
 
-[BSD 2-Clause](LICENSE). Copyright (c) 2026, MikanseiLaboratory.
-
-Spout2 and Syphon copyright notices are in [NOTICE](NOTICE).
+BSD 2-Clause — Copyright (c) 2026, MikanseiLaboratory. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
