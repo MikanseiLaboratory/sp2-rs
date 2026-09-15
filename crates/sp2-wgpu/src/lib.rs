@@ -17,11 +17,16 @@
 //!
 //! ```no_run
 //! # fn demo(device: &wgpu::Device, queue: &wgpu::Queue, frame: &wgpu::Texture) -> sp2::Result<()> {
-//! use sp2_wgpu::WgpuSender;
+//! use sp2_wgpu::{WgpuReceiver, WgpuSender};
 //!
 //! let mut sender = WgpuSender::new(device, queue, "My App", 1280, 720, sp2::PixelFormat::Bgra8Unorm)?;
-//! // every frame, after rendering into `frame` (COPY_SRC usage required):
+//! // every frame, after rendering into `frame` (`COPY_SRC` usage required):
 //! sender.send(frame)?;
+//!
+//! let mut receiver = WgpuReceiver::connect(device, queue, "My App")?;
+//! if let Some(_info) = receiver.receive()? {
+//!     let _texture = receiver.texture();
+//! }
 //! # Ok(()) }
 //! ```
 //!
@@ -319,6 +324,18 @@ impl std::fmt::Debug for WgpuReceiver {
 
 impl WgpuReceiver {
     /// Create a receiver following the active (or first available) sender.
+    ///
+    /// ```no_run
+    /// # fn demo(device: &wgpu::Device, queue: &wgpu::Queue) -> sp2::Result<()> {
+    /// use sp2_wgpu::WgpuReceiver;
+    ///
+    /// let mut receiver = WgpuReceiver::new(device, queue)?;
+    /// if let Some(frame) = receiver.receive()? {
+    ///     let texture = receiver.texture().expect("frame implies a texture");
+    ///     let _ = (frame.width, frame.height, texture);
+    /// }
+    /// # Ok(()) }
+    /// ```
     pub fn new(device: &wgpu::Device, queue: &wgpu::Queue) -> Result<Self> {
         Self::with_mode(device, queue, None, ReceiveMode::default())
     }
