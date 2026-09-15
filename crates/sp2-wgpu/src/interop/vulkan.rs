@@ -26,7 +26,7 @@ use windows::Win32::Foundation::HANDLE;
 
 use super::{
     ensure_texture, texture_descriptor, Gpu, ReceiverInterop, SenderInterop,
-    RECEIVED_TEXTURE_USAGE, SHARED_TEXTURE_USAGE,
+    RECEIVED_TEXTURE_USAGE,
 };
 use crate::cpu::wait_for_gpu;
 use crate::format::texture_format;
@@ -270,9 +270,9 @@ fn import_handle_inner(
 
     let desc = texture_descriptor(Some(label), width, height, format, usage);
     // SAFETY: `hal_texture` was created on this device and matches `desc`.
-    // Receiver imports are tracked as COPY_SRC, their only wgpu use. Sender
-    // imports start UNINITIALIZED because the first operation overwrites the
-    // complete image with a copy.
+    // Receiver imports are tracked as COPY_SRC, sender imports as COPY_DST:
+    // those are the only wgpu uses, and wgpu 30 rejects combined exclusive
+    // states such as UNINITIALIZED|COPY_DST or COPY_SRC|COPY_DST.
     Ok(unsafe {
         gpu.device
             .create_texture_from_hal::<Vulkan>(hal_texture, &desc, initial_state)
@@ -296,6 +296,11 @@ fn find_memory_type(props: &vk::PhysicalDeviceMemoryProperties, type_bits: u32) 
 /// 30 rejects that combination as a conflicting resource state.
 fn receiver_import_state() -> wgpu::TextureUses {
     wgpu::TextureUses::COPY_SRC
+}
+
+/// Valid wgpu tracker state for a sender import that is only copied into.
+fn sender_import_state() -> wgpu::TextureUses {
+    wgpu::TextureUses::COPY_DST
 }
 
 /// Create a Spout sender plus the Vulkan bridge, or `None` when `gpu` is not
@@ -361,8 +366,8 @@ impl VulkanSender {
             width,
             height,
             spout.format(),
-            SHARED_TEXTURE_USAGE,
-            wgpu::TextureUses::UNINITIALIZED,
+            wgpu::TextureUsages::COPY_DST,
+            sender_import_state(),
             "sp2 Spout shared texture (sender)",
         )?;
         self.imported = Some(Imported {
