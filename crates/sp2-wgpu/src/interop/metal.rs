@@ -207,6 +207,10 @@ impl ReceiverInterop for MetalReceiver {
         TransferPath::GpuCopy
     }
 
+    fn supports_shared(&self) -> bool {
+        true
+    }
+
     fn receive(
         &mut self,
         gpu: &Gpu,

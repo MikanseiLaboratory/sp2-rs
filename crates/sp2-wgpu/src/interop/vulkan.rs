@@ -5,8 +5,8 @@
 //! as `VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT` memory bound to
 //! a dedicated `VkImage`, which is then wrapped with
 //! `wgpu::hal::vulkan::Device::texture_from_raw`. The wrapped image aliases
-//! the D3D11 texture, so a single wgpu copy moves a frame in or out and
-//! [`ReceiveMode::Shared`] can sample the sender's texture directly.
+//! the D3D11 texture so a GPU-side copy can move each frame without a CPU
+//! round trip.
 //!
 //! Requirements: the wgpu device must have `VK_KHR_external_memory_win32`
 //! enabled (wgpu enables it automatically when the driver supports it) and
@@ -14,10 +14,10 @@
 //! texture on. When either check fails the bridge reports
 //! [`Error::Unsupported`] and the caller falls back to the CPU path.
 //!
-//! Synchronisation: Spout receivers read the texture through D3D11 as soon as
-//! the access mutex is released, so the bridge waits for the wgpu copy to
-//! complete while holding the mutex (the D3D11 reference implementation
-//! achieves the same ordering with `Flush()` on a shared device).
+//! Directly exposing the imported image is not supported. Standard Spout
+//! senders publish a legacy, non-keyed D3D11 resource and do not provide a
+//! GPU fence that Vulkan can wait on. The official SpoutVulkan receiver also
+//! copies from the imported image while holding the Spout access mutex.
 
 use ash::vk;
 use sp2::backend::spout::{SpoutReceiver, SpoutSender};
@@ -90,17 +90,6 @@ fn hal_uses(usage: wgpu::TextureUsages) -> wgpu::TextureUses {
         uses |= wgpu::TextureUses::STORAGE_READ_WRITE;
     }
     uses
-}
-
-/// Initial state that makes wgpu treat the image as `VK_IMAGE_LAYOUT_GENERAL`.
-///
-/// wgpu derives the "old layout" of the first barrier from this value. The
-/// receiver imports images whose contents were written by D3D11, so the
-/// first transition must not start from `UNDEFINED` (which allows the
-/// driver to discard the contents). A combination of uses that does not map
-/// to a dedicated layout yields `GENERAL`, which preserves them.
-fn general_layout_state() -> wgpu::TextureUses {
-    wgpu::TextureUses::COPY_SRC | wgpu::TextureUses::COPY_DST
 }
 
 /// Import a legacy shared handle as a wgpu texture.
@@ -281,6 +270,9 @@ fn import_handle_inner(
 
     let desc = texture_descriptor(Some(label), width, height, format, usage);
     // SAFETY: `hal_texture` was created on this device and matches `desc`.
+    // Receiver imports are tracked as COPY_SRC, their only wgpu use. Sender
+    // imports start UNINITIALIZED because the first operation overwrites the
+    // complete image with a copy.
     Ok(unsafe {
         gpu.device
             .create_texture_from_hal::<Vulkan>(hal_texture, &desc, initial_state)
@@ -296,6 +288,14 @@ fn find_memory_type(props: &vk::PhysicalDeviceMemoryProperties, type_bits: u32) 
     };
     matches(vk::MemoryPropertyFlags::DEVICE_LOCAL)
         .or_else(|| matches(vk::MemoryPropertyFlags::empty()))
+}
+
+/// Valid wgpu tracker state for a receiver import that is only copied from.
+///
+/// A combined `COPY_SRC | COPY_DST` state maps to Vulkan `GENERAL`, but wgpu
+/// 30 rejects that combination as a conflicting resource state.
+fn receiver_import_state() -> wgpu::TextureUses {
+    wgpu::TextureUses::COPY_SRC
 }
 
 /// Create a Spout sender plus the Vulkan bridge, or `None` when `gpu` is not
@@ -395,26 +395,6 @@ impl SenderInterop for VulkanSender {
             wait_for_gpu(&gpu.device)
         })
     }
-
-    fn shared_texture(
-        &mut self,
-        gpu: &Gpu,
-        sender: &mut sp2::Sender,
-    ) -> Result<Option<&wgpu::Texture>> {
-        let spout = sender.platform().as_spout();
-        self.ensure_imported(gpu, spout)?;
-        Ok(self.imported.as_ref().map(|i| &i.texture))
-    }
-
-    fn publish(&mut self, gpu: &Gpu, sender: &mut sp2::Sender, _sync: SyncMode) -> Result<()> {
-        if self.imported.is_none() {
-            return Err(Error::InvalidArgument(
-                "call shared_texture() and render into it before publish()".into(),
-            ));
-        }
-        let spout = sender.platform_mut().as_spout_mut();
-        spout.publish_with(|_, _| wait_for_gpu(&gpu.device))
-    }
 }
 
 /// Receiver bridge for Vulkan.
@@ -434,7 +414,7 @@ impl ReceiverInterop for VulkanReceiver {
         &mut self,
         gpu: &Gpu,
         receiver: &mut sp2::Receiver,
-        mode: ReceiveMode,
+        _mode: ReceiveMode,
     ) -> Result<Option<FrameInfo>> {
         self.updated = false;
         let spout: &mut SpoutReceiver = receiver.platform_mut().as_spout_mut();
@@ -457,7 +437,7 @@ impl ReceiverInterop for VulkanReceiver {
                 info.height,
                 info.format,
                 RECEIVED_TEXTURE_USAGE,
-                general_layout_state(),
+                receiver_import_state(),
                 "sp2 Spout shared texture (receiver)",
             )?;
             self.imported = Some(Imported {
@@ -476,33 +456,24 @@ impl ReceiverInterop for VulkanReceiver {
         } = self;
         let shared = &imported.as_ref().expect("set above").texture;
         spout.receive_with(|_, _| {
-            if mode == ReceiveMode::Copy {
-                let dst = ensure_texture(
-                    gpu,
-                    copy,
-                    "sp2 received frame",
-                    info.width,
-                    info.height,
-                    info.format,
-                    RECEIVED_TEXTURE_USAGE,
-                    updated,
-                );
-                gpu.copy_texture(shared, dst, "sp2 Spout receive");
-                wait_for_gpu(&gpu.device)?;
-            }
+            let dst = ensure_texture(
+                gpu,
+                copy,
+                "sp2 received frame",
+                info.width,
+                info.height,
+                info.format,
+                RECEIVED_TEXTURE_USAGE,
+                updated,
+            );
+            gpu.copy_texture(shared, dst, "sp2 Spout receive");
+            wait_for_gpu(&gpu.device)?;
             Ok(())
         })
     }
 
-    fn texture(&self, mode: ReceiveMode) -> Option<&wgpu::Texture> {
-        match mode {
-            ReceiveMode::Copy => self.copy.as_ref(),
-            ReceiveMode::Shared => self.shared_texture(),
-        }
-    }
-
-    fn shared_texture(&self) -> Option<&wgpu::Texture> {
-        self.imported.as_ref().map(|i| &i.texture)
+    fn texture(&self, _mode: ReceiveMode) -> Option<&wgpu::Texture> {
+        self.copy.as_ref()
     }
 
     fn is_updated(&self) -> bool {

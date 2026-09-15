@@ -3,12 +3,10 @@
 //! ```text
 //! cargo run -p sp2-wgpu --example wgpu_receiver -- --help
 //! cargo run -p sp2-wgpu --example wgpu_receiver -- "sp2 wgpu Sender"
-//! cargo run -p sp2-wgpu --example wgpu_receiver -- --shared
+//! cargo run -p sp2-wgpu --example wgpu_receiver -- "Avenue - Composition"
 //! ```
 //!
-//! Without a sender name the active (or first) sender is followed. `--shared`
-//! samples the sender's shared texture directly where the backend allows it
-//! (`ReceiveMode::Shared`) instead of copying every frame.
+//! Without a sender name the active (or first) sender is followed.
 
 mod common;
 
@@ -16,7 +14,7 @@ use std::time::Instant;
 
 use clap::Parser;
 use sp2::ReceiverBackend;
-use sp2_wgpu::{ReceiveMode, WgpuReceiver};
+use sp2_wgpu::WgpuReceiver;
 
 use common::{Blit, Demo, WindowGpu};
 
@@ -25,9 +23,6 @@ use common::{Blit, Demo, WindowGpu};
 struct Args {
     /// Sender name or id. Omit to follow the active sender
     sender: Option<String>,
-    /// Sample the shared texture directly (Metal / Vulkan)
-    #[arg(long)]
-    shared: bool,
 }
 
 struct ReceiverDemo {
@@ -43,20 +38,16 @@ impl Demo for ReceiverDemo {
 
     fn new(ctx: &mut WindowGpu, args: Args) -> Self {
         let target = args.sender.as_deref();
-        let mode = if args.shared {
-            ReceiveMode::Shared
-        } else {
-            ReceiveMode::Copy
-        };
-
-        let receiver = WgpuReceiver::with_mode(&ctx.gpu.device, &ctx.gpu.queue, target, mode)
-            .expect("failed to create receiver");
+        let receiver = match target {
+            Some(name) => WgpuReceiver::connect(&ctx.gpu.device, &ctx.gpu.queue, name),
+            None => WgpuReceiver::new(&ctx.gpu.device, &ctx.gpu.queue),
+        }
+        .expect("failed to create receiver");
         println!(
-            "receiving {} via {} backend, transfer path {:?}, mode {:?}",
+            "receiving {} via {} backend, transfer path {:?}",
             target.unwrap_or("the active sender"),
             sp2::BACKEND,
-            receiver.path(),
-            mode
+            receiver.path()
         );
         let blit = Blit::new(&ctx.gpu.device, ctx.config.format, false);
         ReceiverDemo {

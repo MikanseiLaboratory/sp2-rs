@@ -5,7 +5,7 @@ use crate::{FrameInfo, PixelBuffer, PixelFormat, Result, SenderInfo};
 /// can detect silent fallbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TransferPath {
-    /// The shared texture was used directly; no copy was made.
+    /// The shared texture is sampled or written in place (Metal / IOSurface).
     ZeroCopy,
     /// One GPU-side copy between the application texture and the shared texture.
     GpuCopy,

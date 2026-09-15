@@ -173,7 +173,7 @@ impl SyphonClient {
         self.surface.as_ref()
     }
 
-    /// Metal texture backed by the server's surface (zero copy).
+    /// Metal texture backed by the server's IOSurface.
     pub fn metal_texture(
         &self,
         device: &ProtocolObject<dyn MTLDevice>,

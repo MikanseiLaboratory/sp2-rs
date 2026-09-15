@@ -110,30 +110,48 @@ impl FrameCounter {
 
     /// Receiver side: check whether the sender produced a new frame since the
     /// last call. Always `true` when frame counting is disabled.
+    ///
+    /// Matches the official SDK: do not block when the semaphore cannot be
+    /// read, and treat the value returned through `ReleaseSemaphore` as the
+    /// frame count. A count of 0 means the sender is not using frame counting,
+    /// so every poll is considered new.
     pub fn get_new_frame(&mut self) -> bool {
         let Some(sem) = &self.semaphore else {
-            self.frame_count = self.frame_count.wrapping_add(1);
+            self.note_received();
             return true;
         };
         // SAFETY: valid semaphore handle owned by `self`.
         let current = unsafe {
             if WaitForSingleObject(sem.raw(), 0) != WAIT_OBJECT_0 {
-                // Sender holds the count at zero momentarily; treat as no new frame.
-                return false;
+                self.note_received();
+                return true;
             }
             let mut previous = 0i32;
             if ReleaseSemaphore(sem.raw(), 1, Some(&mut previous)).is_err() {
-                return false;
+                self.note_received();
+                return true;
             }
-            previous.saturating_add(1)
+            // `previous` is the count after WaitForSingleObject decremented
+            // it and before ReleaseSemaphore restores it. This is exactly
+            // the value used by SpoutFrameCount::GetNewFrame.
+            previous
         };
+        if current == 0 {
+            self.last_count = Some(current);
+            self.note_received();
+            return true;
+        }
         let is_new = self.last_count != Some(current);
         self.last_count = Some(current);
         if is_new {
-            self.frame_count = self.frame_count.wrapping_add(1);
-            self.update_fps();
+            self.note_received();
         }
         is_new
+    }
+
+    fn note_received(&mut self) {
+        self.frame_count = self.frame_count.wrapping_add(1);
+        self.update_fps();
     }
 
     /// Forget the last observed count so the next frame is reported as new.

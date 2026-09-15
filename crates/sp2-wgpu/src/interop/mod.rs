@@ -171,6 +171,14 @@ pub trait ReceiverInterop {
         None
     }
 
+    /// Whether [`ReceiveMode::Shared`] can alias the sender's texture.
+    ///
+    /// Metal returns `true`. Windows backends stay `false`: standard Spout
+    /// does not expose GPU synchronization suitable for direct access.
+    fn supports_shared(&self) -> bool {
+        false
+    }
+
     /// Whether the last [`ReceiverInterop::receive`] (re)created textures.
     fn is_updated(&self) -> bool;
 

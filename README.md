@@ -23,7 +23,7 @@ Pure Rust [Spout2](https://spout.zeal.co/) (Windows) / [Syphon](https://syphon.g
 | [`sp2-syphon`](crates/sp2-syphon) | Syphon (macOS) |
 | [`sp2-wgpu`](crates/sp2-wgpu) | wgpu (D3D12 / Vulkan / Metal) |
 
-Linux returns `Error::Unsupported`. **macは動作未確認です。** Syphon 実装はありますが、実機では確認していません。On macOS, call `sp2::pump_events` from the main thread so Syphon discovery works.
+Linux returns `Error::Unsupported`. macOS is untested. The Syphon backend is implemented, but it has not been run on a Mac. If you try it, call `sp2::pump_events` from the main thread so server discovery works.
 
 ## Usage
 
@@ -59,17 +59,13 @@ if receiver.receive()?.is_some() {
 ## Examples
 
 Windows, from the repo root. Pair a sender and a receiver in two terminals.
-Each example accepts `--help`. **macは動作未確認です。**
+Each example accepts `--help`. macOS is untested.
 
-These also talk to existing Spout apps (Resolume, TouchDesigner, OBS, …). Windows + Resolume Avenue:
+These also talk to existing Spout apps (Resolume, TouchDesigner, OBS, …).
 
-![Resolume receiving the `sp2 wgpu Sender` triangle](docs/spout2_resolume_1.jpg)
+![`wgpu_receiver` showing Resolume Avenue's composition next to `wgpu_sender`](docs/spout2_resolume.jpg)
 
-*Resolume receiving `sp2 wgpu Sender`.*
-
-![`wgpu_receiver` displaying Resolume Avenue](docs/spout2_resolume_2.jpg)
-
-*`wgpu_receiver` displaying Resolume Avenue (`Avenue - Composition`).*
+*Left: Resolume Avenue (`Avenue - Composition`). Bottom right: `wgpu_receiver` displaying that sender. Top right: `wgpu_sender` (`sp2 wgpu Sender`), a separate sender, not Resolume's output.*
 
 | Example | Description |
 |---------|-------------|
@@ -77,7 +73,7 @@ These also talk to existing Spout apps (Resolume, TouchDesigner, OBS, …). Wind
 | `sender_cpu` | Animated CPU gradient |
 | `receiver_cpu` | Print size / fps / average color |
 | `wgpu_sender` | Rotating triangle (winit window) |
-| `wgpu_receiver` | Fullscreen blit (`--shared` = alias the shared texture) |
+| `wgpu_receiver` | Fullscreen blit |
 | `relay` | Receive → invert → republish (headless) |
 
 ```bash
@@ -89,17 +85,16 @@ cargo run -p sp2 --example list_senders
 # wgpu
 cargo run -p sp2-wgpu --example wgpu_sender -- "sp2 wgpu Sender" 1280 720
 cargo run -p sp2-wgpu --example wgpu_receiver -- "sp2 wgpu Sender"
-cargo run -p sp2-wgpu --example wgpu_receiver -- "sp2 wgpu Sender" --shared
 cargo run -p sp2-wgpu --example relay -- "sp2 wgpu Sender" "sp2 Relay"
 ```
 
-Pick the wgpu backend with `WGPU_BACKEND` (`dx12` / `vulkan` / `metal`):
+Pick the wgpu backend with `WGPU_BACKEND` (`dx12` / `vulkan` / `metal`). On Windows both Vulkan and DX12 copy on the GPU. See [docs/README.md](docs/README.md) for why the shared texture cannot be sampled in place.
 
 ```bash
 WGPU_BACKEND=vulkan cargo run -p sp2-wgpu --example wgpu_sender
 ```
 
-See [docs/](docs/) for protocol notes.
+See [docs/README.md](docs/README.md) and [docs/research/](docs/research/) for protocol notes.
 
 ## License
 

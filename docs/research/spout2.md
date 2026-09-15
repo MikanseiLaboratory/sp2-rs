@@ -118,7 +118,7 @@ flowchart LR
 
 - `ID3D12Device::OpenSharedHandle` は **NT ハンドルのみ** を受け付けるため、Spout のレガシーハンドルは D3D12 から直接開けない。
 - Spout 公式 (`spoutDX12`) は `D3D11On12CreateDevice` で D3D12 デバイス上に D3D11 デバイスを作成し、`CreateWrappedResource` で D3D12 リソースを D3D11 側にラップして `CopyResource` する方式を採用している。
-- Vulkan (`VK_KHR_external_memory_win32`) は `VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT` でレガシーハンドルを直接インポート可能。wgpu の Vulkan バックエンドではこの経路でゼロコピーが狙える。
+- Vulkan (`VK_KHR_external_memory_win32`) は `VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT` でレガシーハンドルをインポートできる。ただし標準 Spout の非 keyed テクスチャと名前付き CPU mutex だけでは D3D11 と Vulkan 間の GPU 同期を保証できず、wgpu の sampled texture レイアウトとも一致しないため、受信はインポート画像から wgpu 所有画像へ GPU コピーする。
 
 ## 7. レジストリ設定
 

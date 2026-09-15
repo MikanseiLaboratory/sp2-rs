@@ -7,9 +7,9 @@
 //!
 //! | wgpu backend | path | notes |
 //! | --- | --- | --- |
-//! | Metal (macOS) | [`TransferPath::GpuCopy`] / [`TransferPath::ZeroCopy`] | The Syphon IOSurface is wrapped as a `wgpu::Texture`; frames are blitted into it, or applications render into it directly. |
-//! | DX12 (Windows) | [`TransferPath::GpuCopy`] | A D3D11On12 device on the wgpu command queue copies between wgpu resources and the Spout D3D11 shared texture, like the official `spoutDX12` helper. |
-//! | Vulkan (Windows) | [`TransferPath::GpuCopy`] / [`TransferPath::ZeroCopy`] | The legacy (KMT) shared handle is imported with `VK_KHR_external_memory_win32`; requires driver support, otherwise falls back. |
+//! | Metal (macOS) | [`TransferPath::GpuCopy`] | The Syphon IOSurface is wrapped as a `wgpu::Texture` and frames are copied into an application-owned texture. Direct sampling is Metal-only and untested. |
+//! | DX12 (Windows) | [`TransferPath::GpuCopy`] | A D3D11On12 device copies between wgpu resources and the Spout D3D11 shared texture, like the official `spoutDX12` helper. D3D12 cannot open Spout's legacy (KMT) handle directly. |
+//! | Vulkan (Windows) | [`TransferPath::GpuCopy`] | The legacy (KMT) handle is imported with `VK_KHR_external_memory_win32`, then copied into a wgpu-owned texture. Standard Spout does not provide Vulkan-compatible GPU synchronization for direct sampling. |
 //! | anything else | [`TransferPath::CpuCopy`] | Staging buffer read-back / `write_texture`. |
 //!
 //! The chosen path is reported by [`WgpuSender::path`] / [`WgpuReceiver::path`]
@@ -82,11 +82,8 @@ pub enum ReceiveMode {
     /// application samples it.
     #[default]
     Copy,
-    /// Expose the shared texture itself when the backend can alias it (Metal,
-    /// Vulkan). Saves a copy but the sender may overwrite the texture while
-    /// the application reads it, exactly like using the shared texture
-    /// directly with the reference SDKs. Backends without aliasing behave
-    /// like [`ReceiveMode::Copy`].
+    /// Expose the shared texture itself when the backend can safely alias it.
+    /// Metal / IOSurface can. Windows backends return [`Error::Unsupported`].
     Shared,
 }
 
@@ -213,7 +210,7 @@ impl WgpuSender {
     }
 
     /// A texture aliasing the shared texture, for rendering into it directly
-    /// (Metal and Vulkan only; `None` elsewhere).
+    /// (Metal only; `None` elsewhere).
     ///
     /// Call [`WgpuSender::publish`] after submitting the work that writes it.
     /// The texture is recreated when the sender is resized, so query it every
@@ -357,7 +354,16 @@ impl WgpuReceiver {
             queue: queue.clone(),
         };
         let (inner, interop) = interop::create_receiver(&gpu, target)?;
-        log::info!("sp2-wgpu receiver: transfer path {:?}", interop.path());
+        if mode == ReceiveMode::Shared && !interop.supports_shared() {
+            return Err(Error::Unsupported(
+                "ReceiveMode::Shared is only supported by Metal; standard Spout does not provide GPU synchronization for safe direct access",
+            ));
+        }
+        log::info!(
+            "sp2-wgpu receiver: transfer path {:?}, mode {:?}",
+            interop.path(),
+            mode
+        );
         Ok(WgpuReceiver {
             gpu,
             inner,
@@ -386,7 +392,17 @@ impl WgpuReceiver {
     }
 
     /// Change the receive mode. Takes effect on the next frame.
+    ///
+    /// Switching to [`ReceiveMode::Shared`] on a backend that cannot alias
+    /// the shared texture logs a warning and is ignored.
     pub fn set_mode(&mut self, mode: ReceiveMode) {
+        if mode == ReceiveMode::Shared && !self.interop.supports_shared() {
+            log::warn!(
+                "ReceiveMode::Shared is not supported on this backend; keeping {:?}",
+                self.mode
+            );
+            return;
+        }
         self.mode = mode;
     }
 
@@ -439,7 +455,7 @@ impl WgpuReceiver {
     }
 
     /// A texture aliasing the sender's shared texture, when the backend can
-    /// provide one (Metal, Vulkan).
+    /// safely provide one (Metal).
     pub fn shared_texture(&self) -> Option<&wgpu::Texture> {
         self.interop.shared_texture()
     }
