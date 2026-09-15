@@ -22,3 +22,4 @@ sp2-syphon.workspace = true
 
 [dev-dependencies]
 env_logger.workspace = true
+clap.workspace = true

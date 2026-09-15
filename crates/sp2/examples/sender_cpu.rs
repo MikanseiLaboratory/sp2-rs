@@ -1,20 +1,37 @@
 //! Publish an animated gradient generated on the CPU.
 //!
 //! ```text
-//! cargo run -p sp2 --example sender_cpu -- [name] [width] [height]
+//! cargo run -p sp2 --example sender_cpu -- --help
+//! cargo run -p sp2 --example sender_cpu -- "sp2 CPU Sender" 640 360
 //! ```
 
 use std::time::{Duration, Instant};
 
+use clap::Parser;
 use sp2::{PixelBuffer, PixelFormat, Sender, SenderBackend};
+
+#[derive(Parser)]
+#[command(about = "Publish an animated CPU gradient over Spout / Syphon")]
+struct Args {
+    /// Sender name
+    #[arg(default_value = "sp2 CPU Sender")]
+    name: String,
+    /// Width in pixels
+    #[arg(default_value_t = 640)]
+    width: u32,
+    /// Height in pixels
+    #[arg(default_value_t = 360)]
+    height: u32,
+}
 
 fn main() -> sp2::Result<()> {
     env_logger::init();
 
-    let mut args = std::env::args().skip(1);
-    let name = args.next().unwrap_or_else(|| "sp2 CPU Sender".to_owned());
-    let width: u32 = args.next().and_then(|s| s.parse().ok()).unwrap_or(640);
-    let height: u32 = args.next().and_then(|s| s.parse().ok()).unwrap_or(360);
+    let Args {
+        name,
+        width,
+        height,
+    } = Args::parse();
     let format = PixelFormat::Bgra8Unorm;
 
     let mut sender = Sender::new(&name, width, height, format)?;

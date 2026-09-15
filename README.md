@@ -59,6 +59,7 @@ if receiver.receive()?.is_some() {
 ## Examples
 
 Windows / macOS, from the repo root. Pair a sender and a receiver in two terminals.
+Each example accepts `--help`.
 
 | Example | Description |
 |---------|-------------|

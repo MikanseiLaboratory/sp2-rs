@@ -6,6 +6,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use clap::Parser;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
@@ -276,8 +277,10 @@ impl WindowGpu {
 
 /// Per-frame callbacks implemented by the windowed examples.
 pub trait Demo: Sized {
+    /// CLI parsed in `main` before the window opens (`--help` exits cleanly).
+    type Args: Parser;
     /// Create GPU resources once the window exists.
-    fn new(ctx: &mut WindowGpu) -> Self;
+    fn new(ctx: &mut WindowGpu, args: Self::Args) -> Self;
     /// Render one frame into `frame` and do the sharing work.
     fn frame(&mut self, ctx: &mut WindowGpu, frame: &wgpu::SurfaceTexture);
     /// Optional periodic status line (every 2 s).
@@ -289,6 +292,7 @@ pub trait Demo: Sized {
 struct App<D: Demo> {
     title: String,
     size: (u32, u32),
+    args: Option<D::Args>,
     ctx: Option<WindowGpu>,
     demo: Option<D>,
     last_status: std::time::Instant,
@@ -297,8 +301,9 @@ struct App<D: Demo> {
 impl<D: Demo> ApplicationHandler for App<D> {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.ctx.is_none() {
+            let args = self.args.take().expect("args already consumed");
             let mut ctx = WindowGpu::new(event_loop, &self.title, self.size.0, self.size.1);
-            self.demo = Some(D::new(&mut ctx));
+            self.demo = Some(D::new(&mut ctx, args));
             self.ctx = Some(ctx);
         }
     }
@@ -333,11 +338,13 @@ impl<D: Demo> ApplicationHandler for App<D> {
 
 /// Run a windowed demo until the window is closed.
 pub fn run<D: Demo>(title: &str, width: u32, height: u32) {
+    let args = D::Args::parse();
     let event_loop = EventLoop::new().expect("failed to create event loop");
     event_loop.set_control_flow(ControlFlow::Poll);
     let mut app = App::<D> {
         title: title.to_owned(),
         size: (width, height),
+        args: Some(args),
         ctx: None,
         demo: None,
         last_status: std::time::Instant::now(),

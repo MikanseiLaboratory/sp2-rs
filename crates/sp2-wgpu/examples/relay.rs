@@ -2,7 +2,8 @@
 //! the result under a new name.
 //!
 //! ```text
-//! cargo run -p sp2-wgpu --example relay -- [source name or id] [output name]
+//! cargo run -p sp2-wgpu --example relay -- --help
+//! cargo run -p sp2-wgpu --example relay -- "sp2 wgpu Sender" "sp2 Relay"
 //! ```
 //!
 //! Demonstrates chaining a [`WgpuReceiver`] and a [`WgpuSender`] on one
@@ -13,16 +14,28 @@ mod common;
 
 use std::time::{Duration, Instant};
 
+use clap::Parser;
 use sp2::{PixelFormat, ReceiverBackend, SenderBackend};
 use sp2_wgpu::{WgpuReceiver, WgpuSender};
 
 use common::Blit;
 
+#[derive(Parser)]
+#[command(about = "Receive a sender, invert colours, and republish")]
+struct Args {
+    /// Source sender name or id. Omit to follow the active sender
+    source: Option<String>,
+    /// Output sender name
+    #[arg(default_value = "sp2 Relay")]
+    output: String,
+}
+
 fn main() -> sp2::Result<()> {
     env_logger::init();
-    let mut args = std::env::args().skip(1);
-    let source = args.next();
-    let output_name = args.next().unwrap_or_else(|| "sp2 Relay".to_owned());
+    let Args {
+        source,
+        output: output_name,
+    } = Args::parse();
 
     let gpu = common::init_gpu(common::create_instance(), None);
     let device = &gpu.device;

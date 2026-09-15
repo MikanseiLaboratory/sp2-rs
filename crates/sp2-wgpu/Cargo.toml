@@ -44,6 +44,7 @@ wgpu = { workspace = true, features = ["vulkan"] }
 
 [dev-dependencies]
 env_logger.workspace = true
+clap.workspace = true
 pollster = "0.4"
 winit = "0.30"
 bytemuck = { version = "1", features = ["derive"] }

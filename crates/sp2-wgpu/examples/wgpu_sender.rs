@@ -1,8 +1,9 @@
 //! Render a rotating triangle with wgpu and publish it through Spout / Syphon.
 //!
 //! ```text
-//! cargo run -p sp2-wgpu --example wgpu_sender -- [name] [width] [height]
-//! WGPU_BACKEND=vulkan cargo run -p sp2-wgpu --example wgpu_sender   # force a backend
+//! cargo run -p sp2-wgpu --example wgpu_sender -- --help
+//! cargo run -p sp2-wgpu --example wgpu_sender -- "sp2 wgpu Sender" 1280 720
+//! WGPU_BACKEND=vulkan cargo run -p sp2-wgpu --example wgpu_sender
 //! ```
 //!
 //! The triangle is rendered into an offscreen texture that is both shared
@@ -14,10 +15,25 @@ mod common;
 use std::time::Instant;
 
 use bytemuck::{Pod, Zeroable};
+use clap::Parser;
 use sp2::{PixelFormat, SenderBackend};
 use sp2_wgpu::WgpuSender;
 
 use common::{Blit, Demo, WindowGpu};
+
+#[derive(Parser)]
+#[command(about = "Render a rotating triangle and publish it over Spout / Syphon")]
+struct Args {
+    /// Sender name
+    #[arg(default_value = "sp2 wgpu Sender")]
+    name: String,
+    /// Width in pixels
+    #[arg(default_value_t = 1280)]
+    width: u32,
+    /// Height in pixels
+    #[arg(default_value_t = 720)]
+    height: u32,
+}
 
 const TRIANGLE_SHADER: &str = r#"
 struct Params {
@@ -83,11 +99,14 @@ struct SenderDemo {
 }
 
 impl Demo for SenderDemo {
-    fn new(ctx: &mut WindowGpu) -> Self {
-        let mut args = std::env::args().skip(1);
-        let name = args.next().unwrap_or_else(|| "sp2 wgpu Sender".to_owned());
-        let width: u32 = args.next().and_then(|s| s.parse().ok()).unwrap_or(1280);
-        let height: u32 = args.next().and_then(|s| s.parse().ok()).unwrap_or(720);
+    type Args = Args;
+
+    fn new(ctx: &mut WindowGpu, args: Args) -> Self {
+        let Args {
+            name,
+            width,
+            height,
+        } = args;
         let format = PixelFormat::Bgra8Unorm;
         let device = &ctx.gpu.device;
 

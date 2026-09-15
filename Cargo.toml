@@ -27,4 +27,5 @@ sp2 = { path = "crates/sp2", version = "0.1.0" }
 thiserror = "2"
 log = "0.4"
 env_logger = "0.11"
+clap = { version = "4", features = ["derive"] }
 wgpu = { version = "30", default-features = false, features = ["std", "parking_lot", "wgsl"] }

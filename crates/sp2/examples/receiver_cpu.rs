@@ -1,26 +1,35 @@
 //! Receive frames into CPU memory and print statistics.
 //!
 //! ```text
-//! cargo run -p sp2 --example receiver_cpu -- [sender name]
+//! cargo run -p sp2 --example receiver_cpu -- --help
+//! cargo run -p sp2 --example receiver_cpu -- "sp2 CPU Sender"
 //! ```
 //!
-//! Without an argument the receiver follows the active (first) sender.
+//! Without a sender name the receiver follows the active (first) sender.
 
 use std::time::{Duration, Instant};
 
+use clap::Parser;
 use sp2::{Receiver, ReceiverBackend};
+
+#[derive(Parser)]
+#[command(about = "Receive frames and print size / fps / average color")]
+struct Args {
+    /// Sender name or id. Omit to follow the active sender
+    sender: Option<String>,
+}
 
 fn main() -> sp2::Result<()> {
     env_logger::init();
 
-    let target = std::env::args().nth(1);
-    let mut receiver = match target.as_deref() {
+    let Args { sender } = Args::parse();
+    let mut receiver = match sender.as_deref() {
         Some(name) => Receiver::connect(name)?,
         None => Receiver::new()?,
     };
     println!(
         "receiving from {} via {} backend; press Ctrl+C to stop",
-        target.as_deref().unwrap_or("<active sender>"),
+        sender.as_deref().unwrap_or("<active sender>"),
         sp2::BACKEND
     );
 
