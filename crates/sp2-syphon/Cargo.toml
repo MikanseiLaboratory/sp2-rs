@@ -1,0 +1,15 @@
+[package]
+name = "sp2-syphon"
+description = "Pure Rust implementation of the Syphon frame sharing protocol (macOS)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+sp2-core.workspace = true
+log.workspace = true

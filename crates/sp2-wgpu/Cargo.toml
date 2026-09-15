@@ -1,0 +1,16 @@
+[package]
+name = "sp2-wgpu"
+description = "wgpu integration for sp2-rs (Spout2 / Syphon compatible texture sharing)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+sp2-core.workspace = true
+sp2.workspace = true
+log.workspace = true

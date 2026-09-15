@@ -1,0 +1,29 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/sp2-core",
+    "crates/sp2-spout",
+    "crates/sp2-syphon",
+    "crates/sp2",
+    "crates/sp2-wgpu",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+license = "BSD-2-Clause"
+repository = "https://github.com/MikanseiLaboratory/sp2-rs"
+authors = ["MikanseiLaboratory"]
+keywords = ["spout", "syphon", "texture-sharing", "gpu", "wgpu"]
+categories = ["graphics", "multimedia::video", "os"]
+
+[workspace.dependencies]
+sp2-core = { path = "crates/sp2-core", version = "0.1.0" }
+sp2-spout = { path = "crates/sp2-spout", version = "0.1.0" }
+sp2-syphon = { path = "crates/sp2-syphon", version = "0.1.0" }
+sp2 = { path = "crates/sp2", version = "0.1.0" }
+
+thiserror = "2"
+log = "0.4"
+env_logger = "0.11"
