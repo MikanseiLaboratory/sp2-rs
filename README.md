@@ -23,7 +23,7 @@ Pure Rust [Spout2](https://spout.zeal.co/) (Windows) / [Syphon](https://syphon.g
 | [`sp2-syphon`](crates/sp2-syphon) | Syphon (macOS) |
 | [`sp2-wgpu`](crates/sp2-wgpu) | wgpu (D3D12 / Vulkan / Metal) |
 
-Linux returns `Error::Unsupported`. On macOS, call `sp2::pump_events` from the main thread so Syphon discovery works.
+Linux returns `Error::Unsupported`. **macは動作未確認です。** Syphon 実装はありますが、実機では確認していません。On macOS, call `sp2::pump_events` from the main thread so Syphon discovery works.
 
 ## Usage
 
@@ -58,8 +58,18 @@ if receiver.receive()?.is_some() {
 
 ## Examples
 
-Windows / macOS, from the repo root. Pair a sender and a receiver in two terminals.
-Each example accepts `--help`.
+Windows, from the repo root. Pair a sender and a receiver in two terminals.
+Each example accepts `--help`. **macは動作未確認です。**
+
+These also talk to existing Spout apps (Resolume, TouchDesigner, OBS, …). Windows + Resolume Avenue:
+
+![Resolume receiving the `sp2 wgpu Sender` triangle](docs/spout2_resolume_1.jpg)
+
+*Resolume receiving `sp2 wgpu Sender`.*
+
+![`wgpu_receiver` displaying Resolume Avenue](docs/spout2_resolume_2.jpg)
+
+*`wgpu_receiver` displaying Resolume Avenue (`Avenue - Composition`).*
 
 | Example | Description |
 |---------|-------------|
@@ -88,8 +98,6 @@ Pick the wgpu backend with `WGPU_BACKEND` (`dx12` / `vulkan` / `metal`):
 ```bash
 WGPU_BACKEND=vulkan cargo run -p sp2-wgpu --example wgpu_sender
 ```
-
-These also talk to existing Spout / Syphon apps (Resolume, TouchDesigner, VDMX, OBS, …).
 
 See [docs/](docs/) for protocol notes.
 
