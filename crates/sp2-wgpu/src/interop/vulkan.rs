@@ -25,8 +25,7 @@ use sp2_core::{Error, FrameInfo, PixelFormat, ReceiverBackend, Result, TransferP
 use windows::Win32::Foundation::HANDLE;
 
 use super::{
-    ensure_texture, texture_descriptor, Gpu, ReceiverInterop, SenderInterop,
-    RECEIVED_TEXTURE_USAGE,
+    ensure_texture, texture_descriptor, Gpu, ReceiverInterop, SenderInterop, RECEIVED_TEXTURE_USAGE,
 };
 use crate::cpu::wait_for_gpu;
 use crate::format::texture_format;
