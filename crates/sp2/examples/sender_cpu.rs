@@ -41,7 +41,7 @@ fn main() -> sp2::Result<()> {
         sender.send_pixels(PixelBuffer::packed(&pixels, width, height, format)?)?;
         frames_since_report += 1;
 
-        sp2::pump_events(Duration::ZERO);
+        sp2::pump_events(Duration::from_millis(1));
 
         if last_report.elapsed() >= Duration::from_secs(2) {
             let fps = frames_since_report as f32 / last_report.elapsed().as_secs_f32();

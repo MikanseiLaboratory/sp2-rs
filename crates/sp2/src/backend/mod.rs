@@ -13,12 +13,17 @@
 
 #[cfg(windows)]
 pub mod spout;
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
+pub mod syphon;
+#[cfg(not(any(windows, target_os = "macos")))]
 pub mod unsupported;
 
 /// The backend compiled for this target.
 #[cfg(windows)]
 pub use spout as imp;
 /// The backend compiled for this target.
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
+pub use syphon as imp;
+/// The backend compiled for this target.
+#[cfg(not(any(windows, target_os = "macos")))]
 pub use unsupported as imp;
