@@ -1,0 +1,25 @@
+[package]
+name = "sp2"
+description = "Spout2 (Windows) / Syphon (macOS) compatible GPU texture sharing for Rust with a unified API"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+sp2-core.workspace = true
+log.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+sp2-spout.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+sp2-syphon.workspace = true
+
+[dev-dependencies]
+env_logger.workspace = true
+clap.workspace = true

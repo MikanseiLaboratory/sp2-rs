@@ -1,0 +1,67 @@
+[package]
+name = "sp2-syphon"
+description = "Pure Rust implementation of the Syphon frame sharing protocol (macOS)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+sp2-core.workspace = true
+log.workspace = true
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = [
+    "std",
+    "block2",
+    "NSArray",
+    "NSCoder",
+    "NSData",
+    "NSDictionary",
+    "NSDistributedNotificationCenter",
+    "NSEnumerator",
+    "NSError",
+    "NSKeyedArchiver",
+    "NSNotification",
+    "NSObject",
+    "NSOperation",
+    "NSProcessInfo",
+    "NSSet",
+    "NSString",
+    "NSValue",
+] }
+objc2-core-foundation = { version = "0.3", default-features = false, features = [
+    "std",
+    "CFBase",
+    "CFData",
+    "CFDate",
+    "CFDictionary",
+    "CFMessagePort",
+    "CFNumber",
+    "CFRunLoop",
+    "CFString",
+    "CFUUID",
+] }
+objc2-io-surface = { version = "0.3", default-features = false, features = [
+    "std",
+    "libc",
+    "IOSurfaceRef",
+    "IOSurfaceTypes",
+    "objc2-core-foundation",
+] }
+objc2-metal = { version = "0.3", default-features = false, features = [
+    "std",
+    "MTLAllocation",
+    "MTLDevice",
+    "MTLPixelFormat",
+    "MTLResource",
+    "MTLTexture",
+    "MTLTypes",
+    "objc2-io-surface",
+] }
