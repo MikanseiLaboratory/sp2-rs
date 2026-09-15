@@ -159,6 +159,23 @@ impl SpoutSender {
         Ok(())
     }
 
+    /// Publish a frame written to the shared texture by another API.
+    ///
+    /// `write` runs while the texture access mutex is held and receives the
+    /// D3D11 device and shared texture. It must leave the texture with the new
+    /// frame fully written (for example by importing the shared handle into
+    /// Vulkan, copying, and waiting for the copy to complete). The frame count
+    /// is incremented after `write` returns successfully.
+    pub fn publish_with(
+        &mut self,
+        write: impl FnOnce(&Device, &ID3D11Texture2D) -> Result<()>,
+    ) -> Result<()> {
+        let _guard = self.access.lock()?;
+        write(&self.device, &self.texture)?;
+        self.frame.set_new_frame();
+        Ok(())
+    }
+
     fn write_info(&self) -> Result<()> {
         let info = SharedTextureInfo {
             share_handle: SharedTextureInfo::truncate_handle(self.handle.0 as isize),

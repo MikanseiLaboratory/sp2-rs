@@ -52,7 +52,7 @@ pub use directory::SyphonDirectory;
 #[cfg(target_os = "macos")]
 pub use receiver::SyphonReceiver;
 #[cfg(target_os = "macos")]
-pub use server::{ServerOptions, SyphonServer};
+pub use server::{FramePublisher, ServerOptions, SyphonServer};
 
 pub use description::ServerDescription;
 pub use sp2_core;

@@ -1,7 +1,7 @@
 //! Syphon server: publishes an IOSurface to clients.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use objc2::rc::Retained;
@@ -36,6 +36,64 @@ struct Clients {
 struct Shared {
     clients: Mutex<Clients>,
     surface_id: AtomicU32,
+    frame_count: AtomicU64,
+}
+
+impl Shared {
+    fn broadcast(&self, message: ServerMessage, payload: &Payload, frame_clients: bool) {
+        let Ok(mut clients) = self.clients.lock() else {
+            return;
+        };
+        let targets = if frame_clients {
+            &mut clients.frames
+        } else {
+            &mut clients.info
+        };
+        targets.retain(|uuid, sender| match sender.send(message as i32, payload) {
+            Ok(()) => true,
+            Err(e) => {
+                log::debug!("dropping Syphon client {uuid}: {e}");
+                false
+            }
+        });
+    }
+
+    fn publish(&self) {
+        self.frame_count.fetch_add(1, Ordering::SeqCst);
+        self.broadcast(ServerMessage::NewFrame, &Payload::None, true);
+    }
+}
+
+/// A cloneable, thread-safe handle that notifies clients of new frames.
+///
+/// Obtained from [`SyphonServer::frame_publisher`]. The reference framework
+/// publishes from a Metal command buffer completion handler; GPU integrations
+/// can do the same by moving a `FramePublisher` into the completion callback.
+/// Publishing after the server was dropped is a no-op (the clients have been
+/// told the server retired).
+#[derive(Clone)]
+pub struct FramePublisher {
+    shared: Arc<Shared>,
+}
+
+impl std::fmt::Debug for FramePublisher {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FramePublisher")
+            .field("frame_count", &self.frame_count())
+            .finish()
+    }
+}
+
+impl FramePublisher {
+    /// Notify frame clients that the surface holds a new frame.
+    pub fn publish(&self) {
+        self.shared.publish();
+    }
+
+    /// Number of frames published so far.
+    pub fn frame_count(&self) -> u64 {
+        self.shared.frame_count.load(Ordering::SeqCst)
+    }
 }
 
 /// A Syphon compatible server.
@@ -50,7 +108,6 @@ pub struct SyphonServer {
     options: ServerOptions,
     shared: Arc<Shared>,
     surface: Surface,
-    frame_count: u64,
     _receiver: MessageReceiver,
     _announce_observer: Observer,
 }
@@ -75,6 +132,7 @@ impl SyphonServer {
         let shared = Arc::new(Shared {
             clients: Mutex::new(Clients::default()),
             surface_id: AtomicU32::new(surface.id()),
+            frame_count: AtomicU64::new(0),
         });
 
         let handler_shared = shared.clone();
@@ -96,7 +154,6 @@ impl SyphonServer {
             options,
             shared,
             surface,
-            frame_count: 0,
             _receiver: receiver,
             _announce_observer: announce_observer,
         };
@@ -183,26 +240,19 @@ impl SyphonServer {
 
     /// Notify frame clients that the surface holds a new frame.
     pub fn publish(&mut self) {
-        self.frame_count = self.frame_count.wrapping_add(1);
-        self.broadcast(ServerMessage::NewFrame, &Payload::None, true);
+        self.shared.publish();
+    }
+
+    /// A handle that can publish frames from another thread, for example a
+    /// GPU completion callback (see [`FramePublisher`]).
+    pub fn frame_publisher(&self) -> FramePublisher {
+        FramePublisher {
+            shared: self.shared.clone(),
+        }
     }
 
     fn broadcast(&self, message: ServerMessage, payload: &Payload, frame_clients: bool) {
-        let Ok(mut clients) = self.shared.clients.lock() else {
-            return;
-        };
-        let targets = if frame_clients {
-            &mut clients.frames
-        } else {
-            &mut clients.info
-        };
-        targets.retain(|uuid, sender| match sender.send(message as i32, payload) {
-            Ok(()) => true,
-            Err(e) => {
-                log::debug!("dropping Syphon client {uuid}: {e}");
-                false
-            }
-        });
+        self.shared.broadcast(message, payload, frame_clients);
     }
 }
 
@@ -288,7 +338,7 @@ impl SenderBackend for SyphonServer {
     }
 
     fn frame_count(&self) -> u64 {
-        self.frame_count
+        self.shared.frame_count.load(Ordering::SeqCst)
     }
 
     fn has_receivers(&self) -> Option<bool> {

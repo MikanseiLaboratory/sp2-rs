@@ -66,6 +66,12 @@ impl Sender {
         })
     }
 
+    /// Wrap a platform sender created directly (for example a Spout sender
+    /// bound to an application owned D3D11 device).
+    pub fn from_platform(inner: imp::Sender) -> Self {
+        Sender { inner }
+    }
+
     /// Access the platform implementation.
     pub fn platform(&self) -> &imp::Sender {
         &self.inner
@@ -146,6 +152,11 @@ impl Receiver {
     /// Change the sender this receiver follows (`None` = active sender).
     pub fn set_target(&mut self, name_or_id: Option<&str>) {
         self.inner.set_target(name_or_id);
+    }
+
+    /// Wrap a platform receiver created directly.
+    pub fn from_platform(inner: imp::Receiver) -> Self {
+        Receiver { inner }
     }
 
     /// Access the platform implementation.

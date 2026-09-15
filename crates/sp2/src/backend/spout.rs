@@ -28,6 +28,11 @@ impl Sender {
         Ok(Sender { inner })
     }
 
+    /// Wrap an existing Spout sender.
+    pub fn from_spout(inner: SpoutSender) -> Self {
+        Sender { inner }
+    }
+
     /// The Spout specific sender.
     pub fn as_spout(&self) -> &SpoutSender {
         &self.inner
@@ -88,6 +93,11 @@ impl Receiver {
         Ok(Receiver {
             inner: SpoutReceiver::new(target)?,
         })
+    }
+
+    /// Wrap an existing Spout receiver.
+    pub fn from_spout(inner: SpoutReceiver) -> Self {
+        Receiver { inner }
     }
 
     /// Change the followed sender.

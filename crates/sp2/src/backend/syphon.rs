@@ -6,7 +6,9 @@ use sp2_core::{
     DirectoryBackend, Error, FrameInfo, PixelBuffer, PixelFormat, ReceiverBackend, Result,
     SenderBackend, SenderInfo,
 };
-pub use sp2_syphon::{ServerOptions, SyphonClient, SyphonDirectory, SyphonReceiver, SyphonServer};
+pub use sp2_syphon::{
+    FramePublisher, ServerOptions, SyphonClient, SyphonDirectory, SyphonReceiver, SyphonServer,
+};
 
 use crate::SenderOptions;
 
@@ -33,6 +35,11 @@ impl Sender {
             },
         )?;
         Ok(Sender { inner: server })
+    }
+
+    /// Wrap an existing Syphon server.
+    pub fn from_syphon(inner: SyphonServer) -> Self {
+        Sender { inner }
     }
 
     /// The Syphon specific server.
@@ -99,6 +106,11 @@ impl Receiver {
         Ok(Receiver {
             inner: SyphonReceiver::new(target)?,
         })
+    }
+
+    /// Wrap an existing Syphon receiver.
+    pub fn from_syphon(inner: SyphonReceiver) -> Self {
+        Receiver { inner }
     }
 
     /// Change the followed server.

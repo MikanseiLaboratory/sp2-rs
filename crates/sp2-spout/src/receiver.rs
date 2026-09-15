@@ -241,6 +241,43 @@ impl SpoutReceiver {
         self.frame_new = true;
         Ok(Some(frame_info(conn)))
     }
+
+    /// Read the latest frame with another API when it is new.
+    ///
+    /// Polls the sender like [`SpoutReceiver::receive_texture`]; when a new
+    /// frame is available `read` runs while the access mutex is held and
+    /// receives the D3D11 device and the sender's shared texture. `read` must
+    /// finish consuming the texture before returning (for example by copying
+    /// from an imported Vulkan image and waiting for the copy). Returns the
+    /// frame description when `read` ran.
+    pub fn receive_with(
+        &mut self,
+        read: impl FnOnce(&Device, &ID3D11Texture2D) -> Result<()>,
+    ) -> Result<Option<FrameInfo>> {
+        if !self.update()? {
+            self.frame_new = false;
+            return Ok(None);
+        }
+        let conn = self.connection.as_mut().expect("connected");
+        let guard = match conn.access.lock() {
+            Ok(guard) => guard,
+            Err(Error::Timeout) => {
+                self.frame_new = false;
+                return Ok(None);
+            }
+            Err(e) => return Err(e),
+        };
+        if !conn.frame.get_new_frame() {
+            drop(guard);
+            self.frame_new = false;
+            return Ok(None);
+        }
+        let result = read(&self.device, &conn.texture);
+        drop(guard);
+        result?;
+        self.frame_new = true;
+        Ok(Some(frame_info(conn)))
+    }
 }
 
 fn frame_info(conn: &Connection) -> FrameInfo {

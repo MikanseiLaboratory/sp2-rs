@@ -14,3 +14,45 @@ categories.workspace = true
 sp2-core.workspace = true
 sp2.workspace = true
 log.workspace = true
+wgpu = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+sp2-spout.workspace = true
+ash = "0.38"
+wgpu = { workspace = true, features = ["dx12", "vulkan"] }
+windows = { version = "0.62", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Direct3D11on12",
+    "Win32_Graphics_Direct3D12",
+    "Win32_Graphics_Dxgi_Common",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+sp2-syphon.workspace = true
+objc2 = "0.6"
+objc2-metal = { version = "0.3", default-features = false, features = [
+    "std",
+    "MTLTexture",
+    "MTLTypes",
+] }
+wgpu = { workspace = true, features = ["metal"] }
+
+[target.'cfg(not(any(windows, target_vendor = "apple")))'.dependencies]
+wgpu = { workspace = true, features = ["vulkan"] }
+
+[dev-dependencies]
+env_logger.workspace = true
+pollster = "0.4"
+winit = "0.30"
+bytemuck = { version = "1", features = ["derive"] }
+
+[[example]]
+name = "wgpu_sender"
+
+[[example]]
+name = "wgpu_receiver"
+
+[[example]]
+name = "relay"
