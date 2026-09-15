@@ -11,7 +11,14 @@
 //! The selected module is re-exported as [`imp`] and its types are reachable
 //! through `Sender::platform()` and friends.
 
+#[cfg(windows)]
+pub mod spout;
+#[cfg(not(windows))]
 pub mod unsupported;
 
 /// The backend compiled for this target.
+#[cfg(windows)]
+pub use spout as imp;
+/// The backend compiled for this target.
+#[cfg(not(windows))]
 pub use unsupported as imp;
